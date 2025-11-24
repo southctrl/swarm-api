@@ -3,26 +3,14 @@ import json
 from datetime import datetime
 import urllib.request
 import urllib.error
-import sys
-import os
 
-# Configuration - reads from environment variables in Vercel
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
-API_BASE_URL = os.environ.get('API_BASE_URL', 'http://192.99.42.71:30058/api')
-
-# SSL context to allow insecure HTTP requests from HTTPS
-import ssl
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
-
-DISCORD_API_BASE = "https://discord.com/api/v10"
+EXTERNAL_API_BASE = "http://192.99.42.71:30058/api"
 
 class handler(BaseHTTPRequestHandler):
     """
     Vercel serverless function handler
     Routes:
-    - /api/status -> fetches bot info from Discord API using token from config.py
+    - /api/status -> fetches from external API
     - /api/commands -> fetches from external API
     - /api/commands/{command} -> fetches from external API
     """
@@ -47,9 +35,8 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response(500, str(e))
     
     def handle_status(self):
-        """Fetch bot status from external API"""
+        """Fetch and return status from external API"""
         try:
-            # Fetch status from external API which has direct bot access
             data = self.fetch_external_api('/status')
             self.send_json_response(data)
         except Exception as e:
@@ -76,32 +63,9 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self.send_error_response(500, f"Failed to fetch command: {str(e)}")
     
-    def fetch_discord_api(self, endpoint, token):
-        """Fetch data from Discord API"""
-        url = f"{DISCORD_API_BASE}{endpoint}"
-        
-        try:
-            req = urllib.request.Request(url)
-            req.add_header('Authorization', f'Bot {token}')
-            req.add_header('Content-Type', 'application/json')
-            req.add_header('User-Agent', 'DiscordBot (https://github.com/discord/discord-api-docs, 1.0)')
-            req.add_header('Accept', 'application/json')
-            req.add_header('Accept-Encoding', 'gzip, deflate')
-            
-            with urllib.request.urlopen(req, timeout=10) as response:
-                data = response.read()
-                return json.loads(data.decode('utf-8'))
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8')
-            raise Exception(f"Discord API error {e.code}: {error_body}")
-        except urllib.error.URLError as e:
-            raise Exception(f"Network error: {str(e)}")
-        except json.JSONDecodeError as e:
-            raise Exception(f"Invalid JSON response: {str(e)}")
-    
     def fetch_external_api(self, endpoint):
         """Fetch data from external API"""
-        url = f"{API_BASE_URL}{endpoint}"
+        url = f"{EXTERNAL_API_BASE}{endpoint}"
         
         try:
             with urllib.request.urlopen(url, timeout=10) as response:
