@@ -7,8 +7,14 @@ import sys
 import os
 
 # Configuration - reads from environment variables in Vercel
-BOT_TOKEN = "MTQ0MTc3NTEwMDM3NzY5ODMxNQ.Go3rfz.DuTdJmw8ILguVICbOTy-M7wq1gDIxpyOVZ--k0"
-API_BASE_URL = 'http://192.99.42.71:30058/api'
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+API_BASE_URL = os.environ.get('API_BASE_URL', 'http://192.99.42.71:30058/api')
+
+# SSL context to allow insecure HTTP requests from HTTPS
+import ssl
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 
 DISCORD_API_BASE = "https://discord.com/api/v10"
 
@@ -41,51 +47,11 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response(500, str(e))
     
     def handle_status(self):
-        """Fetch bot status using Discord API with bot token from config"""
+        """Fetch bot status from external API"""
         try:
-            if not BOT_TOKEN:
-                self.send_error_response(500, "BOT_TOKEN not configured")
-                return
-            
-            # Fetch bot user info from Discord API
-            bot_user = self.fetch_discord_api('/users/@me', BOT_TOKEN)
-            
-            # Fetch bot application info (for additional details)
-            app_info = self.fetch_discord_api('/oauth2/applications/@me', BOT_TOKEN)
-            
-            # Try to get commands count from external API
-            commands_count = 0
-            try:
-                commands_data = self.fetch_external_api('/commands')
-                commands_count = commands_data.get('total_commands', 0)
-            except:
-                pass  # If external API fails, just use 0
-            
-            response_data = {
-                "success": True,
-                "bot": {
-                    "name": bot_user.get('username'),
-                    "id": bot_user.get('id'),
-                    "avatar": f"https://cdn.discordapp.com/avatars/{bot_user.get('id')}/{bot_user.get('avatar')}.png" if bot_user.get('avatar') else None,
-                    "discriminator": bot_user.get('discriminator'),
-                    "bot": bot_user.get('bot', True),
-                    "public": app_info.get('bot_public', False),
-                    "verified": bot_user.get('verified', False)
-                },
-                "status": {
-                    "commands": commands_count,
-                    "online": True
-                },
-                "application": {
-                    "name": app_info.get('name'),
-                    "description": app_info.get('description'),
-                    "install_params": app_info.get('install_params')
-                },
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-            self.send_json_response(response_data)
-        
+            # Fetch status from external API which has direct bot access
+            data = self.fetch_external_api('/status')
+            self.send_json_response(data)
         except Exception as e:
             self.send_error_response(500, f"Failed to fetch status: {str(e)}")
     
@@ -118,6 +84,9 @@ class handler(BaseHTTPRequestHandler):
             req = urllib.request.Request(url)
             req.add_header('Authorization', f'Bot {token}')
             req.add_header('Content-Type', 'application/json')
+            req.add_header('User-Agent', 'DiscordBot (https://github.com/discord/discord-api-docs, 1.0)')
+            req.add_header('Accept', 'application/json')
+            req.add_header('Accept-Encoding', 'gzip, deflate')
             
             with urllib.request.urlopen(req, timeout=10) as response:
                 data = response.read()
