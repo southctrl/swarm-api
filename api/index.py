@@ -7,8 +7,8 @@ import sys
 import os
 
 # Configuration - reads from environment variables in Vercel
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
-API_BASE_URL = os.environ.get('API_BASE_URL', 'http://192.99.42.71:30058/api')
+BOT_TOKEN = "MTQ0MTc3NTEwMDM3NzY5ODMxNQ.Go3rfz.DuTdJmw8ILguVICbOTy-M7wq1gDIxpyOVZ--k0"
+API_BASE_URL = 'http://192.99.42.71:30058/api'
 
 DISCORD_API_BASE = "https://discord.com/api/v10"
 
