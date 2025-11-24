@@ -13,6 +13,7 @@ class handler(BaseHTTPRequestHandler):
     - /api/status -> fetches from external API
     - /api/commands -> fetches from external API
     - /api/commands/{command} -> fetches from external API
+    - /api/shards -> fetches from external API
     """
     
     def do_GET(self):
@@ -28,6 +29,8 @@ class handler(BaseHTTPRequestHandler):
             elif path.startswith('/api/commands/'):
                 command_name = path.split('/api/commands/')[1]
                 self.handle_command_details(command_name)
+            elif path == '/api/shards':
+                self.handle_shards()
             else:
                 self.send_error_response(404, "Endpoint not found")
         
@@ -49,6 +52,14 @@ class handler(BaseHTTPRequestHandler):
             self.send_json_response(data)
         except Exception as e:
             self.send_error_response(500, f"Failed to fetch commands: {str(e)}")
+    
+    def handle_shards(self):
+        """Fetch and return shards from external API"""
+        try:
+            data = self.fetch_external_api('/shards')
+            self.send_json_response(data)
+        except Exception as e:
+            self.send_error_response(500, f"Failed to fetch shards: {str(e)}")
     
     def handle_command_details(self, command_name):
         """Fetch and return specific command details from external API"""
