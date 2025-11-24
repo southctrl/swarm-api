@@ -6,11 +6,9 @@ import urllib.error
 import sys
 import os
 
-# Add parent directory to path to import config
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from config import BOT_TOKEN
-API_BASE_URL = 'http://192.99.42.71:30058/api'
+# Configuration - reads from environment variables in Vercel
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
+API_BASE_URL = os.environ.get('API_BASE_URL', 'http://192.99.42.71:30058/api')
 
 DISCORD_API_BASE = "https://discord.com/api/v10"
 
