@@ -3,13 +3,10 @@ import json
 from datetime import datetime
 import urllib.request
 import urllib.error
-import sys
 import os
 
-# Add parent directory to path to import config
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from config import BOT_TOKEN
+# Get BOT_TOKEN from environment variable instead of config file
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '')
 API_BASE_URL = 'http://192.99.42.71:30058/api'
 
 DISCORD_API_BASE = "https://discord.com/api/v10"
@@ -18,7 +15,7 @@ class handler(BaseHTTPRequestHandler):
     """
     Vercel serverless function handler
     Routes:
-    - /api/status -> fetches bot info from Discord API using token from config.py
+    - /api/status -> fetches bot info from Discord API using token from environment
     - /api/commands -> fetches from external API
     - /api/commands/{command} -> fetches from external API
     """
@@ -43,10 +40,10 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response(500, str(e))
     
     def handle_status(self):
-        """Fetch bot status using Discord API with bot token from config"""
+        """Fetch bot status using Discord API with bot token from environment"""
         try:
             if not BOT_TOKEN:
-                self.send_error_response(500, "BOT_TOKEN not configured")
+                self.send_error_response(500, "BOT_TOKEN environment variable not configured")
                 return
             
             # Fetch bot user info from Discord API
