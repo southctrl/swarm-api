@@ -4,15 +4,17 @@ from datetime import datetime
 import urllib.request
 import urllib.error
 
-API_BASE_URL = 'http://192.99.42.71:30058/api'
+EXTERNAL_API_BASE = "http://192.99.42.71:30058/api"
 
 class handler(BaseHTTPRequestHandler):
     """
     Vercel serverless function handler
     Routes:
-    - /api/status -> fetches bot info from external API shards endpoint
+    - /api/status -> fetches from external API
     - /api/commands -> fetches from external API
     - /api/commands/{command} -> fetches from external API
+    - /api/shards -> fetches from external API
+    - /api/servers -> fetches from external API
     """
     
     def do_GET(self):
@@ -28,6 +30,10 @@ class handler(BaseHTTPRequestHandler):
             elif path.startswith('/api/commands/'):
                 command_name = path.split('/api/commands/')[1]
                 self.handle_command_details(command_name)
+            elif path == '/api/shards':
+                self.handle_shards()
+            elif path == '/api/servers':
+                self.handle_servers()
             else:
                 self.send_error_response(404, "Endpoint not found")
         
@@ -35,47 +41,10 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response(500, str(e))
     
     def handle_status(self):
-        """Fetch bot status from external API shards endpoint"""
+        """Fetch and return status from external API"""
         try:
-            # Fetch shard info from external API
-            shards_data = self.fetch_external_api('/shards')
-            
-            # Calculate total servers and members from shards
-            total_servers = 0
-            total_members = 0
-            
-            if 'shards' in shards_data and isinstance(shards_data['shards'], list):
-                for shard in shards_data['shards']:
-                    total_servers += shard.get('server_count', 0)
-                    total_members += shard.get('cached_user_count', 0)
-            
-            # Try to get commands count from external API
-            commands_count = 0
-            try:
-                commands_data = self.fetch_external_api('/commands')
-                commands_count = commands_data.get('total_commands', 0)
-            except:
-                pass  # If external API fails, just use 0
-            
-            # Format response to match what the frontend expects
-            response_data = {
-                "success": True,
-                "bot": {
-                    "name": "Swarm",
-                    "id": 1441775100377698315,
-                    "avatar": "https://cdn.discordapp.com/avatars/1441775100377698315/a9b49c9bef5f8f073bbc7fd8e4a36a8f.png"
-                },
-                "status": {
-                    "servers": total_servers,
-                    "members": total_members,
-                    "commands": commands_count,
-                    "online": True
-                },
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-            self.send_json_response(response_data)
-        
+            data = self.fetch_external_api('/status')
+            self.send_json_response(data)
         except Exception as e:
             self.send_error_response(500, f"Failed to fetch status: {str(e)}")
     
@@ -86,6 +55,22 @@ class handler(BaseHTTPRequestHandler):
             self.send_json_response(data)
         except Exception as e:
             self.send_error_response(500, f"Failed to fetch commands: {str(e)}")
+    
+    def handle_shards(self):
+        """Fetch and return shards from external API"""
+        try:
+            data = self.fetch_external_api('/shards')
+            self.send_json_response(data)
+        except Exception as e:
+            self.send_error_response(500, f"Failed to fetch shards: {str(e)}")
+    
+    def handle_servers(self):
+        """Fetch and return servers from external API"""
+        try:
+            data = self.fetch_external_api('/servers')
+            self.send_json_response(data)
+        except Exception as e:
+            self.send_error_response(500, f"Failed to fetch servers: {str(e)}")
     
     def handle_command_details(self, command_name):
         """Fetch and return specific command details from external API"""
@@ -102,7 +87,7 @@ class handler(BaseHTTPRequestHandler):
     
     def fetch_external_api(self, endpoint):
         """Fetch data from external API"""
-        url = f"{API_BASE_URL}{endpoint}"
+        url = f"{EXTERNAL_API_BASE}{endpoint}"
         
         try:
             with urllib.request.urlopen(url, timeout=10) as response:
