@@ -3,19 +3,14 @@ import json
 from datetime import datetime
 import urllib.request
 import urllib.error
-import os
 
-# Get BOT_TOKEN from environment variable instead of config file
-BOT_TOKEN = os.environ.get('BOT_TOKEN', '')
 API_BASE_URL = 'http://192.99.42.71:30058/api'
-
-DISCORD_API_BASE = "https://discord.com/api/v10"
 
 class handler(BaseHTTPRequestHandler):
     """
     Vercel serverless function handler
     Routes:
-    - /api/status -> fetches bot info from Discord API using token from environment
+    - /api/status -> fetches bot info from external API shards endpoint
     - /api/commands -> fetches from external API
     - /api/commands/{command} -> fetches from external API
     """
@@ -40,17 +35,10 @@ class handler(BaseHTTPRequestHandler):
             self.send_error_response(500, str(e))
     
     def handle_status(self):
-        """Fetch bot status using Discord API with bot token from environment"""
+        """Fetch bot status from external API shards endpoint"""
         try:
-            if not BOT_TOKEN:
-                self.send_error_response(500, "BOT_TOKEN environment variable not configured")
-                return
-            
-            # Fetch bot user info from Discord API
-            bot_user = self.fetch_discord_api('/users/@me', BOT_TOKEN)
-            
-            # Fetch bot application info (for additional details)
-            app_info = self.fetch_discord_api('/oauth2/applications/@me', BOT_TOKEN)
+            # Fetch shard info from external API
+            shards_data = self.fetch_external_api('/shards')
             
             # Try to get commands count from external API
             commands_count = 0
@@ -62,23 +50,10 @@ class handler(BaseHTTPRequestHandler):
             
             response_data = {
                 "success": True,
-                "bot": {
-                    "name": bot_user.get('username'),
-                    "id": bot_user.get('id'),
-                    "avatar": f"https://cdn.discordapp.com/avatars/{bot_user.get('id')}/{bot_user.get('avatar')}.png" if bot_user.get('avatar') else None,
-                    "discriminator": bot_user.get('discriminator'),
-                    "bot": bot_user.get('bot', True),
-                    "public": app_info.get('bot_public', False),
-                    "verified": bot_user.get('verified', False)
-                },
+                "shards": shards_data,
                 "status": {
                     "commands": commands_count,
                     "online": True
-                },
-                "application": {
-                    "name": app_info.get('name'),
-                    "description": app_info.get('description'),
-                    "install_params": app_info.get('install_params')
                 },
                 "timestamp": datetime.utcnow().isoformat()
             }
@@ -108,26 +83,6 @@ class handler(BaseHTTPRequestHandler):
                 self.send_error_response(e.code, f"Failed to fetch command: {str(e)}")
         except Exception as e:
             self.send_error_response(500, f"Failed to fetch command: {str(e)}")
-    
-    def fetch_discord_api(self, endpoint, token):
-        """Fetch data from Discord API"""
-        url = f"{DISCORD_API_BASE}{endpoint}"
-        
-        try:
-            req = urllib.request.Request(url)
-            req.add_header('Authorization', f'Bot {token}')
-            req.add_header('Content-Type', 'application/json')
-            
-            with urllib.request.urlopen(req, timeout=10) as response:
-                data = response.read()
-                return json.loads(data.decode('utf-8'))
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8')
-            raise Exception(f"Discord API error {e.code}: {error_body}")
-        except urllib.error.URLError as e:
-            raise Exception(f"Network error: {str(e)}")
-        except json.JSONDecodeError as e:
-            raise Exception(f"Invalid JSON response: {str(e)}")
     
     def fetch_external_api(self, endpoint):
         """Fetch data from external API"""
