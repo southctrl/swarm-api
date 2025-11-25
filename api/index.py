@@ -40,6 +40,15 @@ class handler(BaseHTTPRequestHandler):
             # Fetch shard info from external API
             shards_data = self.fetch_external_api('/shards')
             
+            # Calculate total servers and members from shards
+            total_servers = 0
+            total_members = 0
+            
+            if 'shards' in shards_data and isinstance(shards_data['shards'], list):
+                for shard in shards_data['shards']:
+                    total_servers += shard.get('server_count', 0)
+                    total_members += shard.get('cached_user_count', 0)
+            
             # Try to get commands count from external API
             commands_count = 0
             try:
@@ -48,10 +57,17 @@ class handler(BaseHTTPRequestHandler):
             except:
                 pass  # If external API fails, just use 0
             
+            # Format response to match what the frontend expects
             response_data = {
                 "success": True,
-                "shards": shards_data,
+                "bot": {
+                    "name": "Swarm",
+                    "id": 1441775100377698315,
+                    "avatar": "https://cdn.discordapp.com/avatars/1441775100377698315/a9b49c9bef5f8f073bbc7fd8e4a36a8f.png"
+                },
                 "status": {
+                    "servers": total_servers,
+                    "members": total_members,
                     "commands": commands_count,
                     "online": True
                 },
