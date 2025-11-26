@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 import urllib.request
 import urllib.error
+import ssl
 
 EXTERNAL_API_BASE = "http://192.99.42.71:30058/api"
 
@@ -90,9 +91,27 @@ class handler(BaseHTTPRequestHandler):
         url = f"{EXTERNAL_API_BASE}{endpoint}"
         
         try:
-            with urllib.request.urlopen(url, timeout=10) as response:
-                data = response.read()
-                return json.loads(data.decode('utf-8'))
+            # Create an SSL context that doesn't verify certificates for HTTP requests
+            # This is needed because we're fetching from HTTP, not HTTPS
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            
+            # Create request with custom headers
+            req = urllib.request.Request(url)
+            req.add_header('User-Agent', 'Mozilla/5.0 (compatible; VercelProxy/1.0)')
+            
+            # For HTTP URLs, we don't need the SSL context
+            if url.startswith('http://'):
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = response.read()
+                    return json.loads(data.decode('utf-8'))
+            else:
+                # For HTTPS URLs with SSL issues
+                with urllib.request.urlopen(req, timeout=10, context=ctx) as response:
+                    data = response.read()
+                    return json.loads(data.decode('utf-8'))
+                    
         except urllib.error.HTTPError as e:
             # Re-raise HTTP errors to be handled by caller
             raise
@@ -100,6 +119,8 @@ class handler(BaseHTTPRequestHandler):
             raise Exception(f"Network error: {str(e)}")
         except json.JSONDecodeError as e:
             raise Exception(f"Invalid JSON response: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Unexpected error: {str(e)}")
     
     def send_json_response(self, data, status_code=200):
         """Send JSON response"""
